@@ -1,135 +1,106 @@
-# NexusBoard
+<div align="center">
 
-> Real-time collaborative whiteboard with drawing, text, shapes, and team collaboration features.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:05070D,50:241C4D,100:8B7DFF&height=170&section=header&text=NexusBoard&fontSize=48&fontColor=E9F0F7&fontAlignY=40&desc=Sketch%20it.%20Shape%20it.%20Ship%20it.&descAlignY=60&descSize=16" width="100%" alt="NexusBoard" />
 
-[![CI](https://github.com/Ankitavasudev/NexusBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Ankitavasudev/NexusBoard/actions)
-[![React 18](https://img.shields.io/badge/react-18-61DAFB.svg)](https://reactjs.org)
-[![Node.js 18](https://img.shields.io/badge/node.js-18-339933.svg)](https://nodejs.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+**A whiteboard that opens in a tab — pen, shapes, text, eraser, undo, PNG export.**
 
-## Features
+<br />
 
-- **Real-time Drawing** - Canvas-based drawing with smooth rendering
-- **Shape Tools** - Rectangles, circles, lines, arrows, polygons
-- **Text Annotations** - Add text labels anywhere on the canvas
-- **Color Palette** - Full color picker with opacity control
-- **Undo/Redo** - Complete history management
-- **Export** - PNG, SVG, PDF export options
-- **Collaboration** - Real-time multi-user editing (WebSocket)
-- **Templates** - Pre-built templates for common workflows
+<a href="https://ankitavasudev.github.io/NexusBoard/"><img src="https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-8B7DFF?style=for-the-badge&logoColor=white" alt="Live demo" /></a>
+&nbsp;
+<img src="https://img.shields.io/badge/tests-29%20passing-3FB950?style=for-the-badge" alt="Tests" />
+&nbsp;
+<img src="https://img.shields.io/badge/dependencies-0-0D1117?style=for-the-badge" alt="Zero dependencies" />
 
-## Demo
+<br /><br />
 
+<img src="https://img.shields.io/badge/JavaScript-F7DF1E?flat-square&logo=javascript&logoColor=black" />
+<img src="https://img.shields.io/badge/Canvas%202D-1A73E8?flat-square&logo=html5&logoColor=white" />
+<img src="https://img.shields.io/badge/Pointer%20Events-8B7DFF?flat-square" />
+<img src="https://img.shields.io/badge/GitHub%20Pages-222222?flat-square&logo=githubpages&logoColor=white" />
+
+</div>
+
+---
+
+## What it does
+
+Open the page and draw. No sign-up, no canvas service, no round-trip to a server — the drawing lives in `localStorage` and never leaves the device.
+
+| Feature | How it works |
+| :-- | :-- |
+| **Seven tools** | Freehand pen, line, arrow, rectangle, ellipse, text, eraser |
+| **Smooth freehand** | Quadratic curves through midpoints, so strokes don't look like stair-steps |
+| **Text anywhere** | Click, type, `Enter` to commit — rendered as a real shape, not a DOM overlay |
+| **Precise eraser** | Hit-tests the actual geometry: a click in the middle of a rectangle doesn't delete it, touching its edge does |
+| **Undo / redo** | Snapshot history, 80 steps, `Ctrl+Z` / `Ctrl+Shift+Z` |
+| **Hover feedback** | Whatever is under the cursor glows; the cursor changes per tool |
+| **Click ripple** | Every click leaves a short pulse at the pointer |
+| **Export** | PNG at 2× resolution with the grid baked in, or the raw board as JSON |
+| **Import** | Load a previously saved JSON board — malformed entries are dropped, never thrown |
+| **Autosave** | Debounced write to `localStorage`, restored on reload |
+| **Keyboard first** | `P` `L` `A` `R` `O` `T` `E` switch tools |
+
+## Why the geometry is in its own file
+
+Hit-testing is the part that quietly breaks: a rectangle is not a filled box, so clicking the centre must not erase it; an ellipse needs a normalised implicit-distance test, not a bounding box; a freehand stroke is a polyline, not its bounding rectangle.
+
+All of that lives in `board-core.js` with **29 unit tests**, and the DOM layer in `app.js` just wires events to it.
+
+```js
+// ellipse distance: normalise into a unit circle, then convert back to pixels
+const nx = (point.x - cx) / rx;
+const ny = (point.y - cy) / ry;
+return Math.abs(Math.hypot(nx, ny) - 1) * Math.min(rx, ry);
 ```
-┌─────────────────────────────────────────────────────────┐
-│  NexusBoard - Collaborative Whiteboard                  │
-├─────────────────────────────────────────────────────────┤
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐        │
-│  │ ✏️   │ │ 📐  │ │ 🔤  │ │ 🎨  │ │ 📥  │        │
-│  │ Draw │ │Shape │ │ Text │ │Color │ │Export│        │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘        │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │                                                 │   │
-│  │    ┌─────────┐        ┌─────────┐              │   │
-│  │    │  User1  │ ←────→ │  User2  │              │   │
-│  │    └─────────┘        └─────────┘              │   │
-│  │         │                    │                  │   │
-│  │         └────────┬───────────┘                  │   │
-│  │                  ↓                              │   │
-│  │         Real-time Canvas                        │   │
-│  │                                                 │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  Users Online: 3 | Objects: 47 | History: 128 steps    │
-└─────────────────────────────────────────────────────────┘
-```
 
-## Quick Start
+## Keyboard
+
+| Keys | Action |
+| :-- | :-- |
+| `P` `L` `A` `R` `O` `T` `E` | Pen · Line · Arrow · Rect · Ellipse · Text · Eraser |
+| `Ctrl`/`Cmd` + `Z` | Undo |
+| `Ctrl`/`Cmd` + `Shift` + `Z`, `Ctrl` + `Y` | Redo |
+| `Enter` / `Shift+Enter` | Commit text / newline |
+| `Esc` | Cancel the text you're typing |
+
+## Run it
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
+python -m http.server 8000     # or: npx serve .
+# open http://localhost:8000
 ```
 
-## API Usage
+## Tests
 
-```javascript
-// Add a shape
-const shape = {
-  type: 'rectangle',
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 150,
-  fill: '#4A90D9',
-  stroke: '#2C5F8A'
-};
-
-// Add text
-const text = {
-  type: 'text',
-  x: 150,
-  y: 175,
-  content: 'Hello World',
-  fontSize: 24,
-  color: '#333333'
-};
-
-// Export canvas
-const exportData = canvas.export('png'); // Returns base64
+```bash
+npm test        # node --test, 29 tests
 ```
 
-## Architecture
+Covers distance-to-segment (including zero-length and past-the-end cases), box normalisation for every drag direction, per-shape hit-testing, history branching and limits, snapshot isolation, and a serialiser that survives broken JSON, unknown shape types and non-numeric coordinates.
 
 ```
 NexusBoard/
-├── src/
-│   ├── components/
-│   │   ├── Canvas.jsx           # Main drawing canvas
-│   │   ├── Toolbar.jsx          # Tool selection
-│   │   ├── ColorPicker.jsx      # Color selection
-│   │   ├── LayersPanel.jsx      # Layer management
-│   │   └── UsersPanel.jsx       # Active users
-│   ├── hooks/
-│   │   ├── useCanvas.js         # Canvas logic
-│   │   ├── useHistory.js        # Undo/redo
-│   │   └── useWebSocket.js      # Real-time sync
-│   ├── utils/
-│   │   ├── shapes.js            # Shape utilities
-│   │   ├── export.js            # Export functions
-│   │   └── collaboration.js     # Sync logic
-│   └── styles/
-│       └── globals.css          # TailwindCSS styles
-├── server/
-│   ├── index.js                 # Express server
-│   ├── websocket.js             # WebSocket handler
-│   └── storage.js               # Session storage
-└── .github/workflows/           # CI/CD pipeline
+├── index.html      # toolbar, tool rail, inspector
+├── style.css       # dark UI, grid, ripples, responsive layout
+├── app.js          # pointer handling, rendering, export, storage
+├── board-core.js   # geometry, hit-testing, history, serialisation
+├── tests/          # node:test suite
+└── .github/workflows/ci.yml
 ```
 
-## Tech Stack
+## Deliberately not included
 
-- **Frontend**: React 18, Canvas API, TailwindCSS
-- **Backend**: Node.js, Express, WebSocket
-- **State**: Zustand (lightweight state management)
-- **Export**: html2canvas, jsPDF
-- **CI/CD**: GitHub Actions
+No accounts, no realtime multiplayer, no cloud sync. A whiteboard that needs a backend to draw a line is a worse whiteboard — this one is a single static folder you can open offline.
 
-## Contributing
+## Stack
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Add tests for new features
-4. Ensure all tests pass (`npm test`)
-5. Submit a pull request
+Vanilla JavaScript (ES modules) · Canvas 2D · Pointer Events · `localStorage` · `node:test` · GitHub Actions · GitHub Pages
 
-## License
+---
 
-MIT License - see [LICENSE](LICENSE) for details.
+<div align="center">
+
+**Ankita Salaria** · [@Ankitavasudev](https://github.com/Ankitavasudev)
+
+</div>

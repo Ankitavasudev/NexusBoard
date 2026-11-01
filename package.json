@@ -1,0 +1,12 @@
+{
+  "name": "nexusboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A canvas whiteboard in the browser - pen, shapes, text, eraser, undo/redo and PNG export",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server 8000"
+  },
+  "license": "MIT"
+}

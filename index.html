@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusBoard — draw in the browser</title>
+  <meta name="description" content="A canvas whiteboard that runs in your browser: pen, lines, arrows, shapes, text, eraser, undo/redo and PNG export. Saves locally, nothing is uploaded." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 20 9 5l5 9 3-5 3 11z" fill="currentColor"/></svg>
+      </span>
+      <div>
+        <h1>NexusBoard</h1>
+        <p>Sketch it. Shape it. Ship it.</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="undo" class="ghost" title="Undo (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h9a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Undo
+      </button>
+      <button id="redo" class="ghost" title="Redo (Ctrl+Shift+Z)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9h-9a6 6 0 0 0 0 12h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Redo
+      </button>
+      <span class="divider" aria-hidden="true"></span>
+      <button id="importBtn" class="ghost" title="Load a saved board (JSON)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Load
+      </button>
+      <button id="exportJson" class="ghost" title="Save the board as JSON">Save</button>
+      <button id="exportPng" class="primary" title="Export as PNG">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9m0 0-4 4m4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7V4h16v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Export PNG
+      </button>
+      <input id="fileInput" type="file" accept="application/json,.json" hidden />
+    </div>
+  </header>
+
+  <main class="stage">
+    <nav class="rail" aria-label="Tools">
+      <button class="tool" data-tool="pen" aria-pressed="true" title="Pen (P)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 8 19l11-11-3-3L5 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tool" data-tool="line" aria-pressed="false" title="Line (L)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tool" data-tool="arrow" aria-pressed="false" title="Arrow (A)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5m0 0h-7m7 0v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tool" data-tool="rect" aria-pressed="false" title="Rectangle (R)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <button class="tool" data-tool="ellipse" aria-pressed="false" title="Ellipse (O)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <button class="tool" data-tool="text" aria-pressed="false" title="Text (T)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M12 6v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser (E)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 17 8-8 4 4-8 8H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 21h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </nav>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="board" aria-label="Drawing canvas"></canvas>
+      <div class="ripple-layer" id="ripples" aria-hidden="true"></div>
+      <div class="badge" id="badge">pen · 2.5px</div>
+      <p class="empty-hint" id="emptyHint">Drag to draw. Press <kbd>T</kbd> to type, <kbd>E</kbd> to erase.</p>
+    </div>
+
+    <aside class="inspector" aria-label="Style">
+      <h2>Colour</h2>
+      <div class="swatches" id="swatches">
+        <button class="swatch" data-color="#e9f0f7" style="--c:#e9f0f7" aria-pressed="true" title="Chalk"></button>
+        <button class="swatch" data-color="#8b7dff" style="--c:#8b7dff" aria-pressed="false" title="Violet"></button>
+        <button class="swatch" data-color="#00d8e8" style="--c:#00d8e8" aria-pressed="false" title="Cyan"></button>
+        <button class="swatch" data-color="#3fb950" style="--c:#3fb950" aria-pressed="false" title="Green"></button>
+        <button class="swatch" data-color="#ffb454" style="--c:#ffb454" aria-pressed="false" title="Amber"></button>
+        <button class="swatch" data-color="#ef5f6b" style="--c:#ef5f6b" aria-pressed="false" title="Red"></button>
+      </div>
+
+      <h2>Stroke <span class="mono" id="widthValue">2.5</span></h2>
+      <input id="width" type="range" min="1" max="16" step="0.5" value="2.5" aria-label="Stroke width" />
+
+      <h2>Board</h2>
+      <div class="stack">
+        <button id="clear" class="ghost danger">Clear board</button>
+        <p class="note" id="savedNote">Saved locally</p>
+      </div>
+
+      <div class="legend">
+        <p><kbd>P</kbd> pen · <kbd>L</kbd> line · <kbd>A</kbd> arrow</p>
+        <p><kbd>R</kbd> rect · <kbd>O</kbd> ellipse · <kbd>T</kbd> text</p>
+        <p><kbd>E</kbd> eraser · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="shapeCount">0 shapes</span>
+    <span class="spacer"></span>
+    <span id="cursorInfo">—</span>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
