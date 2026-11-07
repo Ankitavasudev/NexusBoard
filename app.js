@@ -46,6 +46,84 @@ let dirty = false;
 
 const history = new History();
 
+/* ------------------------------------------------------------------- sound */
+// Tiny synthesized sound effects via the Web Audio API — no audio files needed.
+const Sound = (() => {
+  let ctx = null;
+  let muted = localStorage.getItem("nexus-sound") === "0";
+  function ensure() {
+    if (!ctx) {
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch {
+        ctx = null;
+      }
+    }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+  function tone(freq, duration, type = "sine", gain = 0.08, slide = 0) {
+    if (muted) return;
+    const c = ensure();
+    if (!c) return;
+    const now = c.currentTime;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), now + duration);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(g).connect(c.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+  function noise(duration, gain = 0.05) {
+    if (muted) return;
+    const c = ensure();
+    if (!c) return;
+    const now = c.currentTime;
+    const bufSize = Math.floor(c.sampleRate * duration);
+    const buf = c.createBuffer(1, bufSize, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    g.gain.setValueAtTime(gain, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    src.connect(g).connect(c.destination);
+    src.start(now);
+  }
+  return {
+    pen: () => tone(740, 0.035, "triangle", 0.05),
+    shape: () => tone(523, 0.09, "sine", 0.09, 260),
+    erase: () => noise(0.09, 0.06),
+    undo: () => {
+      tone(660, 0.07, "sine", 0.07);
+      setTimeout(() => tone(440, 0.09, "sine", 0.07), 70);
+    },
+    redo: () => {
+      tone(440, 0.07, "sine", 0.07);
+      setTimeout(() => tone(660, 0.09, "sine", 0.07), 70);
+    },
+    export: () => {
+      tone(523, 0.08, "sine", 0.08);
+      setTimeout(() => tone(659, 0.08, "sine", 0.08), 90);
+      setTimeout(() => tone(784, 0.12, "sine", 0.09), 180);
+    },
+    clear: () => tone(330, 0.16, "sawtooth", 0.07, -180),
+    toggleMute: () => {
+      muted = !muted;
+      localStorage.setItem("nexus-sound", muted ? "0" : "1");
+      if (!muted) tone(880, 0.06, "sine", 0.08);
+      return muted;
+    },
+    isMuted: () => muted,
+  };
+})();
+
 /* ------------------------------------------------------------------ canvas */
 
 function fit() {
@@ -300,6 +378,7 @@ canvas.addEventListener("pointerup", (event) => {
   if (erasing) {
     erasing = false;
     commit();
+    Sound.erase();
     return;
   }
   if (!drawing) return;
@@ -321,6 +400,8 @@ canvas.addEventListener("pointerup", (event) => {
     if (!tooSmall) {
       shapes.push(draft);
       commit();
+      if (draft.type === "pen") Sound.pen();
+      else Sound.shape();
     }
   }
   draft = null;
@@ -426,6 +507,7 @@ undoBtn.addEventListener("click", () => {
   syncHistoryButtons();
   persist();
   requestRender();
+  Sound.undo();
 });
 
 redoBtn.addEventListener("click", () => {
@@ -436,6 +518,7 @@ redoBtn.addEventListener("click", () => {
   syncHistoryButtons();
   persist();
   requestRender();
+  Sound.redo();
 });
 
 /* -------------------------------------------------------------- persistence */
@@ -510,6 +593,7 @@ function exportPng() {
     if (!blob) return toast("Export failed");
     download(exportName(), blob);
     toast("PNG exported");
+    Sound.export();
   }, "image/png");
 }
 
@@ -541,13 +625,18 @@ $("fileInput").addEventListener("change", async (event) => {
   event.target.value = "";
 });
 
-$("clear").addEventListener("click", () => {
+$("muteBtn").addEventListener("click", () => {
+  const muted = Sound.toggleMute();
+  $("muteBtn").setAttribute("aria-pressed", String(!muted));
+  toast(muted ? "Sound off" : "Sound on");
+});
   if (!shapes.length) return;
   if (!confirm(`Clear all ${shapes.length} shapes? This cannot be undone.`)) return;
   shapes = [];
   hovered = null;
   commit();
   toast("Board cleared");
+  Sound.clear();
 });
 
 /* -------------------------------------------------------------------- tools */
@@ -630,6 +719,7 @@ shapes = restore();
 history.reset(shapes);
 syncHistoryButtons();
 setTool("pen");
+$("muteBtn").setAttribute("aria-pressed", String(!Sound.isMuted()));
 fit();
 new ResizeObserver(fit).observe(wrap);
 savedNote.textContent = shapes.length ? "Restored from this browser" : "Saved locally";
